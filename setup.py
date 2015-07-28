@@ -7,7 +7,7 @@ if (sys.version_info.major, sys.version_info.minor) < (2,7):
 	dependencies.append('argparse')
 
 setup(
-	name='Submit (BGQ ver.)',
+	name='Submit (BGQ ver)',
 	version = '0.0',
 	description = 'personal job submission script for Blue Gene Q',
 	url = 'https://github.com/ExpHP/submit-bgq',
