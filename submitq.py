@@ -46,6 +46,7 @@ SUBMITTED_FNAME = 'submitted'
 # (as close as we can easily get to a strictly-typed enum on Python 2.6)
 class Mode:
 	SAFE   = object()
+	CHECK  = object()
 	SKIP   = object()
 	RESUME = object()
 
@@ -88,6 +89,7 @@ def main():
 	mode = Mode.SAFE
 	if args.skip:   mode = Mode.SKIP
 	if args.resume: mode = Mode.RESUME
+	if args.check:  mode = Mode.CHECK
 
 	stats = process_all_trials(args.input, mode)
 	print_summary(stats, mode)
@@ -107,6 +109,7 @@ def process_args():
 	group = parser.add_mutually_exclusive_group()
 	group.add_argument('-r', '--resume', action='store_true', help=HELP_OPT_RESUME)
 	group.add_argument('-s', '--skip', action='store_true', help='Skip incomplete trials.')
+	group.add_argument('-c', '--check', action='store_true', help='Only add "finished" markers; do not submit anything.')
 
 	return parser.parse_args()
 
@@ -201,6 +204,9 @@ def process_all_trials(dirs, mode):
 	elif mode == Mode.RESUME: # resubmits unfinished jobs
 		pass # handled in submission pass
 
+	elif mode == Mode.CHECK: # stops prior to submission
+		return stats
+
 	else:
 		assert False # complete switch
 
@@ -229,27 +235,48 @@ def process_all_trials(dirs, mode):
 
 	return stats
 
+INDENT = ' '*3
 
 def print_summary(stats, mode):
+	if mode == Mode.CHECK:
+		print_checkmode_summary(stats)
+	else:
+		print_general_summary(stats, mode)
+
+def print_summary_header(stats):
 	logger.info('')
 	logger.info('----SUMMARY----')
 	logger.info('%d jobs were requested total.', stats['valid'])
 
-	indent = ' '*3
-	logger.info(indent*1 + '%d jobs are marked finished.', stats['finished'])
-	logger.info(indent*2 + '%d are newly marked.', stats['finished.new'])
+def print_summary_finished(stats):
+	logger.info(INDENT*1 + '%d jobs are marked finished.', stats['finished'])
+	logger.info(INDENT*2 + '%d are newly marked.', stats['finished.new'])
 	if stats['finished.wrong'] > 0:
-		logger.info(indent*2 + '%d look unfinished! (!!!)', stats['finished.wrong'])
+		logger.info(INDENT*2 + '%d look unfinished! (!!!)', stats['finished.wrong'])
+
+def print_general_summary(stats, mode):
+	print_summary_header(stats)
+	print_summary_finished(stats)
 
 	if mode == Mode.SKIP:
-		logger.info(indent*1 + '%d unfinished jobs were skipped. (-s)', stats['skipped'])
+		logger.info(INDENT*1 + '%d unfinished jobs were skipped. (-s)', stats['skipped'])
 
-	logger.info(indent*1 + '%d jobs were submitted.', stats['submitted'])
+	logger.info(INDENT*1 + '%d jobs were submitted.', stats['submitted'])
 	if mode == Mode.RESUME:
-		logger.info(indent*2 + '%d of these were resubmissions. (-r)', stats['submitted.resumed'])
+		logger.info(INDENT*2 + '%d of these were resubmissions. (-r)', stats['submitted.resumed'])
 
 	if stats['unprocessed'] > 0:
-		logger.info(indent*1 + '%d remain unprocessed after a failed submission. (!!!)', stats['unprocessed'])
+		logger.info(INDENT*1 + '%d remain unprocessed after a failed submission. (!!!)', stats['unprocessed'])
+
+def print_checkmode_summary(stats):
+	print_summary_header(stats)
+	print_summary_finished(stats)
+
+	unfinished_count = stats['valid'] - stats['finished']
+	assert unfinished_count >= 0
+
+	warning = ' (!!!)' if unfinished_count > 0 else ''
+	logger.info(INDENT*1 + '%d jobs remain unfinished.%s', unfinished_count, warning)
 
 #--------------------------------------
 # Trial directory helper methods
