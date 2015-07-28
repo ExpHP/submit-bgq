@@ -148,7 +148,8 @@ def process_all_trials(dirs, mode):
 
 	# These actions are almost aways done together.
 	def remove_and_log(d, counter, msg):
-		stats[counter] += 1  # increment a summary stat
+		if counter is not None:
+			stats[counter] += 1  # increment a summary stat
 		remaining.remove(d)  # omit the directory from subsequent passes
 		logger.info('%s: %s' % (d, msg))
 
@@ -205,6 +206,8 @@ def process_all_trials(dirs, mode):
 		pass # handled in submission pass
 
 	elif mode == Mode.CHECK: # stops prior to submission
+		for d in sorted(remaining):
+			remove_and_log(d, None, 'not finished. (!!!)')
 		return stats
 
 	else:
